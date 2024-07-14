@@ -1,0 +1,98 @@
+Gestión de enlaces entre archivos
+
+Puede crear varios nombres que apunten al mismo archivo. Estos nombres de archivos se denominan enlaces.
+Puede crear dos tipos de enlaces: un enlace duro o un enlace simbólico (a veces denominado enlace blando). Cada forma tiene sus ventajas y desventajas.
+
+Crear enlaces duros
+
+Cada archivo comienza con un solo enlace duro, desde su nombre inicial hasta los datos en el sistema de archivos. Cuando crea un enlace duro a un archivo, crea otro nombre que apunta a esos mismos datos. El nuevo enlace duro actúa exactamente igual que el nombre del archivo original. Después de que se crea el enlace, no puede distinguir la diferencia entre el nuevo enlace duro y el nombre original del archivo.
+Puede determinar si un archivo tiene varios enlaces duros mediante el comando ls -l. Un ítem que aparece es el recuento de enlaces de cada archivo, es decir, la cantidad de enlaces duros que tiene el archivo. En el ejemplo siguiente, el recuento de enlaces del archivo newfile.txt es 1. Tiene exactamente una ruta absoluta, que es la ubicación /home/user/newfile.txt.
+
+[user@host ~]$ pwd
+/home/user
+[user@host ~]$ ls -l newfile.txt
+
+-rw-r--r--. 1 user user 0 Mar 11 19:19 newfile.txt
+
+Puede usar el comando ln para crear un enlace duro (otro nombre de archivo) que apunte a un archivo existente. El comando necesita al menos dos argumentos, una ruta al archivo existente y la ruta al enlace duro que desea crear.
+En el siguiente ejemplo se crea un enlace duro llamado newfile-hlink2.txt con el nombre para el archivo existente newfile.txt en el directorio /tmp.
+
+[user@host ~]$ ln newfile.txt /tmp/newfile-hlink2.txt
+[user@host ~]$ ls -l newfile.txt /tmp/newfile-hlink2.txt
+-rw-rw-r--. 2 user user 12 Mar 11 19:19 newfile.txt
+-rw-rw-r--. 2 user user 12 Mar 11 19:19 /tmp/newfile-hlink2.txt
+
+Para determinar si dos archivos tienen un enlace duro, use el comando ls con la opción -i para enumerar el número de inodo de cada archivo. Si los archivos están en el mismo sistema de archivos y sus números de inodo son los mismos, los archivos son enlaces duros que apuntan a los mismos contenidos de los archivos de datos.
+
+[user@host ~]$ ls -il newfile.txt /tmp/newfile-hlink2.txt
+8924107 -rw-rw-r--. 2 user user 12 Mar 11 19:19 newfile.txt
+8924107 -rw-rw-r--. 2 user user 12 Mar 11 19:19 /tmp/newfile-hlink2.txt
+
+IMPORTANTE
+Todos los enlaces duros que hacen referencia al mismo archivo tendrán la misma estructura de inodos que el recuento de enlaces, permiso de acceso, pertenencia a usuarios y grupos, marcas de tiempo y contenido de archivo. Cuando se cambia esa información para un enlace duro, los otros enlaces duros para el mismo archivo también muestran la nueva información. Esto se debe a que cada enlace duro apunta a los mismos datos en el dispositivo de almacenamiento.
+
+Incluso si se elimina el archivo original, aún puede acceder al contenido del archivo siempre que exista al menos un enlace duro adicional. Los datos se eliminan del almacenamiento solo cuando se elimina el último enlace duro, lo que hace que el contenido del archivo no esté referenciado por ningún enlace duro.
+
+[user@host ~]$ rm -f newfile.txt
+[user@host ~]$ ls -l /tmp/newfile-hlink2.txt
+-rw-rw-r--. 1 user user 12 Mar 11 19:19 /tmp/newfile-hlink2.txt
+[user@host ~]$ cat /tmp/newfile-hlink2.txt
+Hello World
+
+Limitaciones de los enlaces duros
+Los enlaces duros tienen algunas limitaciones. En primer lugar, los enlaces duros solo se pueden usar con archivos normales. No puede usar el comando ln para crear un enlace duro a un directorio o archivo especial.
+En segundo lugar, solo puede usar enlaces duros si ambos archivos están en el mismo sistema de archivos. La jerarquía del sistema de archivos puede estar compuesta por varios dispositivos de almacenamiento. Dependiendo de la configuración de su sistema, cuando pase a un nuevo directorio, ese directorio y su contenido pueden almacenarse en un sistema de archivos diferente.
+Puede usar el comando df para enumerar los directorios que están en diferentes sistemas de archivos. Por ejemplo, es posible que visualice la siguiente salida:
+
+[user@host ~]$ df
+Filesystem                   1K-blocks    Used Available Use% Mounted on
+devtmpfs                        886788       0    886788   0% /dev
+tmpfs                           902108       0    902108   0% /dev/shm
+tmpfs                           902108    8696    893412   1% /run
+tmpfs                           902108       0    902108   0% /sys/fs/cgroup
+/dev/mapper/rhel_rhel9--root  10258432 1630460   8627972  16% /
+/dev/sda1                      1038336  167128    871208  17% /boot
+tmpfs                           180420       0    180420   0% /run/user/1000
+
+Los archivos que están en dos directorios diferentes con el indicador "Montado en" y sus subdirectorios están en sistemas de archivos distintos. Por lo tanto, en el sistema en este ejemplo, puede crear un enlace duro entre los archivos /var/tmp/link1 y /home/user/file porque ambos son subdirectorios del directorio /, pero no de ningún otro directorio de la lista. Sin embargo, no puede crear un enlace duro entre los archivos /boot/test/badlink y /home/user/file. El primer archivo está en un subdirectorio del directorio /boot (en la lista "Montado en") y está en el sistema de archivos /dev/sda1. El segundo archivo está en el sistema de archivos /dev/mapper/rhel_rhel9—​root.
+
+Crear enlaces simbólicos
+
+El comando ln con la opción -s crea un enlace simbólico, que también se conoce como "enlace blando". Un enlace simbólico no es un archivo regular, sino un tipo de archivo especial que apunta a un archivo o a un directorio existente.
+Los enlaces simbólicos tienen algunas ventajas en comparación con los enlaces duros:
+		• Los enlaces simbólicos pueden vincular dos archivos en diferentes sistemas de archivos.
+		• Los enlaces simbólicos pueden apuntar a un directorio o archivo especial, no solo a un archivo regular.
+
+<En el siguiente ejemplo, el comando ln -s crea un enlace simbólico para el archivo /home/user/newfile-link2.txt. El nombre del enlace simbólico es /tmp/newfile-symlink.txt.
+
+[user@host ~]$ ln -s /home/user/newfile-link2.txt /tmp/newfile-symlink.txt
+[user@host ~]$ ls -l newfile-link2.txt /tmp/newfile-symlink.txt
+-rw-rw-r--. 1 user user 12 Mar 11 19:19 newfile-link2.txt
+lrwxrwxrwx. 1 user user 11 Mar 11 20:59 /tmp/newfile-symlink.txt -> /home/user/newfile-link2.txt
+[user@host ~]$ cat /tmp/newfile-symlink.txt
+Symbolic Hello World
+
+En el ejemplo anterior, el primer carácter de la lista larga para el archivo /tmp/newfile-symlink.txt es l (letra I) en lugar de -. Este carácter indica que el archivo es un enlace simbólico y no un archivo regular.
+Cuando se elimina el archivo regular original, el enlace simbólico seguirá apuntando al archivo, pero el destino desaparece. Un enlace simbólico que apunta a un archivo que falta se denomina "enlace simbólico colgante".
+
+[user@host ~]$ rm -f newfile-link2.txt
+[user@host ~]$ ls -l /tmp/newfile-symlink.txt
+lrwxrwxrwx. 1 user user 11 Mar 11 20:59 /tmp/newfile-symlink.txt -> /home/user/newfile-link2.txt
+[user@host ~]$ cat /tmp/newfile-symlink.txt
+cat: /tmp/newfile-symlink.txt: No such file or directory
+
+IMPORTANTE
+Un efecto adicional del enlace simbólico colgante en el ejemplo anterior es que si usted crea un archivo con el mismo nombre que el archivo eliminado (/home/user/newfile-link2.txt), el enlace simbólico ya no estará "colgando" y apuntará al archivo nuevo. Los enlaces duros no funcionan de esta forma. Si borra un enlace duro y luego usa herramientas normales (en lugar de ln) para crear un archivo con el mismo nombre, el nuevo archivo no se vincula al archivo anterior. Considere la siguiente manera de comparar enlaces duros y enlaces simbólicos para comprender cómo funcionan:
+		◇ Un enlace duro apunta un nombre a los datos de un dispositivo de almacenamiento.
+		◇ Un enlace simbólico apunta un nombre a otro nombre, que apunta a datos en un dispositivo de almacenamiento.
+
+Un enlace simbólico puede apuntar a un directorio. El enlace simbólico funciona como un directorio. Si usa cd para cambiar al enlace simbólico, el directorio de trabajo actual se convierte en el directorio enlazado. Algunas herramientas pueden hacer un seguimiento del hecho de que usted siguió un enlace simbólico para llegar allí. Por ejemplo, de manera predeterminada, cd actualiza su directorio de trabajo actual por medio del nombre del enlace simbólico, y no del nombre del directorio real. Si desea actualizar el directorio de trabajo actual con el nombre del directorio real, puede usar la opción -P.
+En el siguiente ejemplo, se crea un enlace simbólico llamado /home/user/configfiles que apunta al directorio /etc.
+
+[user@host ~]$ ln -s /etc /home/user/configfiles
+[user@host ~]$ cd /home/user/configfiles
+[user@host configfiles]$ pwd
+/home/user/configfiles
+[user@host configfiles]$ cd -P /home/user/configfiles
+[user@host etc]$ pwd
+/etc
